@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PersonADD</title>
+  <script>
+    // Analizar imagen desde input de archivo
+    async function analyzeImage() {
+      const fileInput = document.getElementById('fileInput');
+      const resultDiv = document.getElementById('result');
+      const formData = new FormData();
+      formData.append('image', fileInput.files[0]);
+
+      try {
+        const response = await fetch('http://127.0.0.1:5001/analyze', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await response.json();
+        if (data.error) {
+          resultDiv.innerHTML = `Error: ${data.error}`;
+        } else {
+          const age = data[0]?.age || "Unknown";
+          const ageGroup = data[0]?.age_group || "Unknown";
+          resultDiv.innerHTML = `Age: ${age.toFixed(2)}<br>Age Group: ${ageGroup}`;
+        }
+      } catch (error) {
+        resultDiv.innerHTML = `Error: ${error.message}`;
+      }
+    }
+
+    // Capturar imagen desde la cámara
+    document.addEventListener("DOMContentLoaded", () => {
+      const video = document.getElementById("camera");
+      const canvas = document.getElementById("snapshot");
+      const captureButton = document.getElementById("capture");
+
+      // Acceder a la cámara
+      navigator.mediaDevices
+        .getUserMedia({ video: true })
+        .then((stream) => {
+          video.srcObject = stream;
+        })
+        .catch((err) => console.error("Error al acceder a la cámara:", err));
+
+      // Tomar la imagen y enviarla para análisis
+      captureButton.addEventListener("click", () => {
+        const context = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob((blob) => {
+          const formData = new FormData();
+          formData.append("image", blob);
+
+          fetch("http://127.0.0.1:5001/analyze", {
+            method: "POST",
+            body: formData,
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              const resultDiv = document.getElementById("result");
+              if (data.error) {
+                resultDiv.textContent = "Error: " + data.error;
+              } else {
+                const age = data[0]?.age || "Unknown";
+                const ageGroup = data[0]?.age_group || "Unknown";
+                resultDiv.innerHTML = `Age: ${age.toFixed(2)}<br>Age Group: ${ageGroup}`;
+              }
+            })
+            .catch((err) => console.error("Error:", err));
+        });
+      });
+    });
+  </script>
+</head>
+<body>
+  <h1>PersonADD - Facial Analysis</h1>
+
+  <!-- Análisis desde archivo -->
+  <h2>Subir Imagen</h2>
+  <input type="file" id="fileInput" accept="image/*">
+  <button onclick="analyzeImage()">Analyze</button>
+
+  <!-- Captura desde cámara -->
+  <h2>Captura desde Cámara</h2>
+  <video id="camera" autoplay></video>
+  <canvas id="snapshot" style="display: none;"></canvas>
+  <button id="capture">Capturar y Analizar</button>
+
+  <!-- Resultados -->
+  <div id="result"></div>
+</body>
+</html>
+
